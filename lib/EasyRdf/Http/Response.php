@@ -264,6 +264,34 @@ class EasyRdf_Http_Response
     }
 
     /**
+     * Create an EasyRdf_Http_Response object from a cURL HTTP response string
+     *
+     * @param string $body
+     * @param array $headers
+     * @return EasyRdf_Http_Response
+     */
+    public static function fromCurl($body, $headers)
+    {
+        $status = $headers['http_code'];
+        
+        // Process the rest of the header lines
+        $h = array();
+        if (is_array($headers)) {
+            foreach ($headers as $hName => $hValue) {
+                if (isset($h[$hName])) {
+                    if (! is_array($h[$hName])) {
+                        $h[$hName] = array($h[$hName]);
+                    }
+                    $h[$hName][] = $hValue;
+                } else {
+                    $h[$hName] = $hValue;
+                }
+            }
+        }
+        return new EasyRdf_Http_Response($status, $h, $body, '', $status);
+    }
+
+    /**
      * Create an EasyRdf_Http_Response object from a HTTP response string
      *
      * @param string $responseStr

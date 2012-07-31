@@ -99,6 +99,7 @@ class EasyRdf_Format
         }
         arsort($accept, SORT_NUMERIC);
 
+
         $acceptStr='';
         foreach ($accept as $type => $q) {
             if ($acceptStr)
@@ -492,6 +493,7 @@ EasyRdf_Format::register(
     )
 );
 
+
 EasyRdf_Format::register(
     'turtle',
     'Turtle Terse RDF Triple Language',
@@ -504,21 +506,22 @@ EasyRdf_Format::register(
 );
 
 EasyRdf_Format::register(
-    'rdfxml',
-    'RDF/XML',
-    'http://www.w3.org/TR/rdf-syntax-grammar',
-    array(
-        'application/rdf+xml' => 0.8
-    )
-);
-
-EasyRdf_Format::register(
     'n3',
     'Notation3',
     'http://www.w3.org/2000/10/swap/grammar/n3#',
     array(
-        'text/n3' => 0.5,
-        'text/rdf+n3' => 0.5
+        'text/n3' => 0.7,
+        'text/rdf+n3' => 1.0
+    )
+);
+
+EasyRdf_Format::register(
+    'rdfxml',
+    'RDF/XML',
+    'http://www.w3.org/TR/rdf-syntax-grammar',
+    array(
+        //'text/plain' => 0.7,
+        'application/rdf+xml' => 0.8
     )
 );
 
@@ -531,7 +534,7 @@ EasyRdf_Format::register(
         'application/xhtml+xml' => 0.4
     )
 );
-
+/*
 EasyRdf_Format::register(
     'sparql-xml',
     'SPARQL XML Query Results',
@@ -549,3 +552,4 @@ EasyRdf_Format::register(
         'application/sparql-results+json' => 1.0
     )
 );
+*/

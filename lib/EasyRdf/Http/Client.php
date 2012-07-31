@@ -364,6 +364,56 @@ class EasyRdf_Http_Client
     }
 
     /**
+     * Send a cURL HTTP request and return an HTTP response object
+     *
+     * @return EasyRdf_Http_Response
+     * @throws EasyRdf_Exception
+     */
+    public function curlRequest($cert_path, $cert_pass, $method = null)
+    {
+        if (!$this->_uri) {
+            throw new EasyRdf_Exception(
+                "Set URI before calling EasyRdf_Http_Client->request()"
+            );
+        }
+
+        if ($method) {
+            $this->setMethod($method);
+        }
+
+        $response = null;
+
+        // Send the first request using cURL.
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->_uri);
+        curl_setopt($ch, CURLOPT_VERBOSE, false);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, $this->_config['maxredirects']);
+        // SSL options
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSLCERT, $cert_path);
+        curl_setopt($ch, CURLOPT_SSLCERTPASSWD, $cert_pass);
+        // Add additional user specified headers
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $this->_prepareHeaders());
+
+        // grab URL and pass it to the browser
+        $content = curl_exec($ch);
+
+        if (! $content) {
+            throw new EasyRdf_Exception("Unable to fetch RDF for ".$this->_uri);
+        }
+
+        $response = EasyRdf_Http_Response::fromCurl($content, curl_getinfo($ch));
+
+        // close cURL resource, and free up system resources
+        curl_close($ch);
+       
+        return $response;
+    }
+    
+    /**
      * Send the HTTP request and return an HTTP response object
      *
      * @return EasyRdf_Http_Response
@@ -387,16 +437,6 @@ class EasyRdf_Http_Client
         do {
             // Clone the URI and add the additional GET parameters to it
             $uri = parse_url($this->_uri);
-            if ($uri['scheme'] === 'http') {
-                $host = $uri['host'];
-            } else if ($uri['scheme'] === 'https') {
-                $host = 'ssl://'.$uri['host'];
-            } else {
-                throw new EasyRdf_Exception(
-                    "Unsupported URI scheme: ".$uri['scheme']
-                );
-            }
-
             if (isset($uri['port'])) {
                 $port = $uri['port'];
             } else {
@@ -405,6 +445,16 @@ class EasyRdf_Http_Client
                 } else {
                     $port = 80;
                 }
+            }
+
+            if ($uri['scheme'] === 'http') {
+                $host = $uri['host'];
+            } else if ($uri['scheme'] === 'https') {
+                $host = 'ssl://'.$uri['host'];
+            } else {
+                throw new EasyRdf_Exception(
+                    "Unsupported URI scheme: ".$uri['scheme']
+                );
             }
 
             if (!empty($this->_paramsGet)) {
@@ -419,11 +469,11 @@ class EasyRdf_Http_Client
             $headers = $this->_prepareHeaders($uri['host'], $port);
 
             // Open socket to remote server
-            $socket = @fsockopen(
+            $socket = fsockopen(
                 $host, $port, $errno, $errstr, $this->_config['timeout']
             );
             if (!$socket) {
-                throw new EasyRdf_Exception("Unable to connect to $host:$port ($errstr)");
+                throw new EasyRdf_Exception($errstr);
             }
 
             // Write the request
@@ -450,7 +500,7 @@ class EasyRdf_Http_Client
             // FIXME: support HTTP/1.1 100 Continue
 
             // Close the socket
-            @fclose($socket);
+            fclose($socket);
 
             // Parse the response string
             $response = EasyRdf_Http_Response::fromString($content);
@@ -499,23 +549,10 @@ class EasyRdf_Http_Client
      * @ignore
      * @return array
      */
-    protected function _prepareHeaders($host, $port)
+    protected function _prepareHeaders()
     {
         $headers = array();
 
-        // Set the host header
-        if (! isset($this->_headers['host'])) {
-            // If the port is not default, add it
-            if ($port !== 80 and $port !== 443) {
-                $host .= ':' . $port;
-            }
-            $headers[] = "Host: {$host}";
-        }
-
-        // Set the connection header
-        if (! isset($this->_headers['connection'])) {
-            $headers[] = "Connection: close";
-        }
 
         // Set the user agent header
         if (! isset($this->_headers['user-agent'])) {
@@ -534,9 +571,14 @@ class EasyRdf_Http_Client
                 $value = implode(', ', $value);
             }
 
-            $headers[] = "$name: $value";
+            $headers[] = $this->ucwordsHyphen($name).": $value";
         }
 
         return $headers;
+    }
+    
+    protected function ucwordsHyphen($str)
+    {
+        return str_replace('- ','-',ucwords(str_replace('-','- ',$str)));
     }
 }

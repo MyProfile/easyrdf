@@ -54,9 +54,15 @@ class EasyRdf_Graph
     private $_index = array();
     private $_revIndex = array();
 
+    /** The HTTP client object */
+    private $client = null;
 
     /** Counter for the number of bnodes */
     private $_bNodeCount = 0;
+    
+    /** Client certificate parameters (for secretary) */
+    private $_cert_path = null;
+    private $_cert_pass = null;
 
 
     /**
@@ -78,14 +84,27 @@ class EasyRdf_Graph
     public function __construct($uri=null, $data=null, $format=null)
     {
         $this->checkResourceParam($uri, true);
+        
+        $this->client = EasyRdf_Http::getDefaultHttpClient();
 
         if ($uri) {
-            $this->_uri = $uri;
+            $this->_uri = $uri;            
             if ($data)
                 $this->parse($data, $format, $this->_uri);
         }
     }
-
+    
+    /** Set the path to WebID certificate and the certificate password
+     *
+     * @param string $path     Path to certificate
+     * @param string $pass     Certificate password
+     */
+    public function setCertParams($path=null, $pass=null)
+    {
+        $this->_cert_path = $path;
+        $this->_cert_pass = $pass;
+    }
+    
     /** Get or create a resource stored in a graph
      *
      * If the resource did not previously exist, then a new resource will
@@ -262,27 +281,43 @@ class EasyRdf_Graph
         if (!$data) {
             # No data was given - try and fetch data from URI
             # FIXME: prevent loading the same URI multiple times
-            $client = EasyRdf_Http::getDefaultHttpClient();
-            $client->resetParameters(true);
-            $client->setUri($uri);
-            $client->setMethod('GET');
-            $client->setHeaders('Accept', EasyRdf_Format::getHttpAcceptHeader());
-            $response = $client->request();
+            $this->client->setUri($uri);
+            $this->client->setMethod('GET');
+            $this->client->setHeaders('Accept', EasyRdf_Format::getHttpAcceptHeader());
+            
+            if ($this->_cert_path)
+                $response = $this->client->curlRequest($this->_cert_path, $this->_cert_pass);
+            else
+                $response = $this->client->request();
             if (!$response->isSuccessful())
                 throw new EasyRdf_Exception(
                     "HTTP request for $uri failed: ".$response->getMessage()
                 );
 
             $data = $response->getBody();
-            if (!$format or $format == 'guess') {
-                list($format, $params) = EasyRdf_Utils::parseMimeType(
-                    $response->getHeader('Content-Type')
-                );
+            if ($response->getHeader('content_type'))
+                $ct = $response->getHeader('content_type');
+            else
+                $ct = $response->getHeader('Content-Type');
+                
+            if (!$format) {
+                list($format, $params) = EasyRdf_Utils::parseMimeType($ct);
             }
         }
-
+        $this->client->resetParameters(true);
         // Parse the data
         return $this->parse($data, $format, $uri);
+    }
+    
+    /**
+     * Set a request header based on user input
+     *
+     * @param string $name Header name (e.g. 'Accept')
+     * @param string $value Header value or null
+     */
+    public function setHeaders($name, $value)
+    {
+        $this->client->setHeaders($name, $value);
     }
 
     /** Get an associative array of all the resources stored in the graph.
