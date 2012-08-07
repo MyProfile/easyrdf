@@ -402,7 +402,8 @@ class EasyRdf_Http_Client
         $content = curl_exec($ch);
 
         if (! $content) {
-            throw new EasyRdf_Exception("Unable to fetch RDF for ".$this->_uri);
+            throw new EasyRdf_Exception("Unable to fetch RDF for ".$this->_uri.
+                                        " (no connection?)");
         }
 
         $response = EasyRdf_Http_Response::fromCurl($content, curl_getinfo($ch));

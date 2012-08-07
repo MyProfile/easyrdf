@@ -281,17 +281,18 @@ class EasyRdf_Graph
         if (!$data) {
             # No data was given - try and fetch data from URI
             # FIXME: prevent loading the same URI multiple times
+            //$this->client->resetParameters(true);
             $this->client->setUri($uri);
             $this->client->setMethod('GET');
             $this->client->setHeaders('Accept', EasyRdf_Format::getHttpAcceptHeader());
             
-            if ($this->_cert_path)
-                $response = $this->client->curlRequest($this->_cert_path, $this->_cert_pass);
-            else
+            if ((!$this->_cert_path) || (!$this->_cert_pass))
                 $response = $this->client->request();
+            else
+                $response = $this->client->curlRequest($this->_cert_path, $this->_cert_pass);
             if (!$response->isSuccessful())
                 throw new EasyRdf_Exception(
-                    "HTTP request for $uri failed: ".$response->getMessage()
+                    "EasyRDF->HTTP request for $uri failed: ".$response->getMessage()
                 );
 
             $data = $response->getBody();
